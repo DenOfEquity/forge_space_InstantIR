@@ -8,4 +8,7 @@ runs on low VRAM
 will download 7.77GB of models, + ~6.5GB sdxl base model in diffusers format
 
 >[!NOTE]
-> Install via *Extensions* tab; *Install from URL* sub-tab; use URL of this repo
+>Install via *Extensions* tab; *Install from URL* sub-tab; use URL of this repo
+
+>[!IMPORTANT]
+>You need to copy/save the result manually.

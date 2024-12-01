@@ -61,12 +61,9 @@ def resize_img(input_image, max_side=1024, min_side=768, width=None, height=None
     return input_image, (out_w, out_h)
 
 
-if not os.path.exists("models/adapter.pt"):
-    hf_hub_download(repo_id="InstantX/InstantIR", filename="models/adapter.pt", local_dir="./")
-if not os.path.exists("models/aggregator.pt"):
-    hf_hub_download(repo_id="InstantX/InstantIR", filename="models/aggregator.pt", local_dir="./")
-if not os.path.exists("models/previewer_lora_weights.bin"):
-    hf_hub_download(repo_id="InstantX/InstantIR", filename="models/previewer_lora_weights.bin", local_dir="./")
+adapter_path = hf_hub_download(repo_id="InstantX/InstantIR", filename="models/adapter.pt")
+aggregator_path = hf_hub_download(repo_id="InstantX/InstantIR", filename="models/aggregator.pt")
+previewer_path = hf_hub_download(repo_id="InstantX/InstantIR", filename="models/previewer_lora_weights.bin")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
@@ -89,12 +86,12 @@ pipe = InstantIRPipeline.from_pretrained(
 print("Loading LQ-Adapter...")
 load_adapter_to_pipe(
     pipe,
-    "models/adapter.pt",
+    adapter_path,
     dinov2_repo_id,
 )
 
 # Prepare previewer
-lora_alpha = pipe.prepare_previewers("models")
+lora_alpha = pipe.prepare_previewers(os.path.dirname(previewer_path))
 print(f"use lora alpha {lora_alpha}")
 lora_alpha = pipe.prepare_previewers(lcm_repo_id, use_lcm=True)
 print(f"use lora alpha {lora_alpha}")
@@ -105,7 +102,7 @@ lcm_scheduler = LCMSingleStepScheduler.from_config(pipe.scheduler.config)
 # Load weights.
 print("Loading checkpoint...")
 aggregator_state_dict = torch.load(
-    "models/aggregator.pt",
+    aggregator_path,
     map_location="cpu"
 )
 pipe.aggregator.load_state_dict(aggregator_state_dict)
@@ -133,16 +130,25 @@ def randomize_seed_fn(seed: int, randomize_seed: bool) -> int:
     return seed
 
 def unpack_pipe_out(preview_row, index):
-    return preview_row[index][0]
+    if preview_row:
+        return preview_row[index][0]
+    else:
+        return None
 
 def dynamic_preview_slider(preview_row):
-    return gr.Slider(label="Restoration Previews", value=len(preview_row)-1, minimum=0, maximum=len(preview_row)-1, step=1)
+    if preview_row:
+        return gr.Slider(label="Restoration Previews", value=len(preview_row)-1, minimum=0, maximum=len(preview_row)-1, step=1, visible=True)
+    else:
+        return gr.Slider(label="Restoration Previews", value=0, minimum=0, maximum=0, step=1, visible=False)
 
 def dynamic_guidance_slider(sampling_steps):
     return gr.Slider(label="Start Free Rendering", value=sampling_steps, minimum=0, maximum=sampling_steps, step=1)
 
 def show_final_preview(preview_row):
-    return preview_row[-1][0]
+    if preview_row:
+        return preview_row[-1][0]
+    else:
+        return None
 
 @spaces.GPU(duration=70)
 def instantir_restore(
@@ -195,7 +201,9 @@ def instantir_restore(
         for i, preview_tuple in enumerate(out[1]):
             preview_tuple[0] = preview_tuple[0].resize([out_size[0], out_size[1]], Image.BILINEAR)
             preview_tuple.append(f"preview_{i}")
-    return out[0][0], out[1]
+        return out[0][0], out[1]
+    else:
+        return out[0][0], None
 
 css="""
 #col-container {

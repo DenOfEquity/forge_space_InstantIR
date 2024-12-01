@@ -1,7 +1,8 @@
 ## Forge2 Spaces implementation of InstantIR image reconstruction ##
-New Forge only.
+### New Forge only. ###
 
-derived from https://github.com/instantX-research/InstantIR
+derived from https://huggingface.co/spaces/JOY-Huang/InstantIR
+* https://github.com/instantX-research/InstantIR
 
 runs on low VRAM
 
